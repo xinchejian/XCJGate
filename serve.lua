@@ -71,9 +71,9 @@ local ip, port = server:getsockname()
 -- print a message informing what's up
 print("Webserver running on port " .. port)
 -- http header
-local headers = "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\nAccept: application/x-www-form-urlencoded\r\n\r\n"
-local template = "<!DOCTYPE html><html><head><title>XCJ Machine Room</title><meta name='viewport' content='width=120'></head><body onload='document.getElementById(\"pin\").focus()'>${{content}}</body></html>"
-local keypad = "<form method='POST' action='/'><input type='password' name='pin' id='pin'/><br/><input type='submit' name='action' value='open'><input type='submit' name='action' value='lock'></form>"
+local headers = "HTTP/1.1 100 continue\r\n\r\nHTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\nAccept: application/x-www-form-urlencoded\r\nversion: HTTP/1.1\r\n\r\n"
+local template = "<!DOCTYPE html><html><head><title>XCJ Machine Room</title><meta name='viewport' content='width=120'></head><body onload='document.getElementById(\"pin\").focus()'>${{content}}</body></html>\r\n\r\n"
+local keypad = "<form method='POST' action='/'><input type='number' pattern='[0-9]*' name='pin' id='pin'/><br/><input type='submit' name='action' value='open'><input type='submit' name='action' value='lock'></form>"
 local openning = "<h2>Gate opening</h2>"
 local locking = "<h2>Gate locking</h2>"
 local wrongPin = "<h2>Pin entered is not correct.</h2>" .. keypad;
