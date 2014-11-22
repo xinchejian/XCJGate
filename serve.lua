@@ -9,6 +9,8 @@ local LISTENPORT = 80
 local PASSWORD_SALT= 'xinchejian'
 -- Hardcoded password
 local PASSWORD_HASH = '78b3087ef1365a27ac821832b0823473'
+-- local boolean flag to auto lock after a certain time
+local UNLOCKED = 0
 
 -- Capture the output of system command
 -- Shamelessly copied form http://stackoverflow.com/questions/132397/get-back-the-output-of-os-execute-in-lua
@@ -48,11 +50,13 @@ end
 -- Send lock command to arduino
 local function lock()
   os.execute('echo c > /dev/ttyACM0')
+  UNLOCKED = 0
 end
 
 -- Send lock command to arduino
 local function unlock()
   os.execute('echo o > /dev/ttyACM0')
+  UNLOCKED = 1
 end
 
 -- Parse the HTTP header into a triple: verb, resource, version
@@ -64,17 +68,17 @@ end
 print("Version 2")
 print("Setting up arduino")
 os.execute('stty -F /dev/ttyACM0 cs8 115200 ignbrk -brkint -icrnl -imaxbel -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoctl -echoke noflsh -ixon -crtscts')
--- lock the door as the state is saved in the relay
-os.execute('echo c > /dev/ttyACM0')
 -- create a TCP socket and bind it to the local host, at any port
 local server = assert(socket.bind("*", LISTENPORT))
 -- find out which port the OS chose for us
 local ip, port = server:getsockname()
 -- print a message informing what's up
 print("Webserver running on port " .. port)
+-- lock the door
+os.execute('echo c > /dev/ttyACM0')
 -- http header
 local headers = "HTTP/1.1 100 continue\r\n\r\nHTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\nAccept: application/x-www-form-urlencoded\r\nversion: HTTP/1.1\r\n\r\n"
-local template = "<!DOCTYPE html><html><head><title>XCJ Machine Room</title><meta name='viewport' content='width=120'></head><body onload='document.getElementById(\"pin\").focus()'>${{content}}</body></html>\r\n\r\n"
+local template = "<!DOCTYPE html><html><head><title>XCJ Door</title><meta name='viewport' content='width=120'></head><body onload='document.getElementById(\"pin\").focus()'>${{content}}</body></html>\r\n\r\n"
 local keypad = "<form method='POST' action='/'><input type='number' pattern='[0-9]*' name='pin' id='pin'/><br/><input type='submit' name='action' value='open'><input type='submit' name='action' value='lock'></form>"
 local openning = "<h2>Gate opening</h2>"
 local locking = "<h2>Gate locking</h2>"
@@ -130,6 +134,21 @@ local function postOpenerMacAddr(mac, action)
 end
 
 local function main ()
+  
+  local time = tonumber(os.date("%H"))
+  -- if time is later than 9pm or earlier than 10am the door will auto lock after 5 seconds, this is unfortunatly blocking
+  -- this also relies on the /tmp/TZ set correct
+  -- /etc/config/system
+  --  option timezone	CST-8
+  if ((time >= 21 or time <= 10) and UNLOCKED == 1) then                                        
+    print "Locking Door"
+    socket.sleep(5);
+    lock();                    
+  end
+  
+  -- previously this was 0 so it never timed out, now it checks every 15 minutes if the door is unlocked and within its requirements
+  local TIMEOUT = 15 * 60
+  
   -- wait for a connection from any client
   server:settimeout(TIMEOUT)
   local client, err = server:accept()
@@ -163,11 +182,11 @@ local function main ()
         local action = getAction(pr)
         if action == "open" then
           unlock();
-          postOpenerMacAddr(mac, 'open');
+          --postOpenerMacAddr(mac, 'open');
           client:send(render(openning))
         elseif action == "lock" then
           lock();
-          postOpenerMacAddr(mac, 'lock');
+          --postOpenerMacAddr(mac, 'lock');
           client:send(render(locking))
         end
       else
