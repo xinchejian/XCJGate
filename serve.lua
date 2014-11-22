@@ -64,6 +64,8 @@ end
 print("Version 2")
 print("Setting up arduino")
 os.execute('stty -F /dev/ttyACM0 cs8 115200 ignbrk -brkint -icrnl -imaxbel -opost -onlcr -isig -icanon -iexten -echo -echoe -echok -echoctl -echoke noflsh -ixon -crtscts')
+-- lock the door as the state is saved in the relay
+os.execute('echo c > /dev/ttyACM0')
 -- create a TCP socket and bind it to the local host, at any port
 local server = assert(socket.bind("*", LISTENPORT))
 -- find out which port the OS chose for us
